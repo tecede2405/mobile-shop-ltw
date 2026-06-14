@@ -8,11 +8,11 @@ class Database
     {
         if (!self::$instance) {
 
-            $host = getenv('DB_HOST');
-            $port = getenv('DB_PORT');
-            $dbname = getenv('DB_NAME');
-            $user = getenv('DB_USER');
-            $pass = getenv('DB_PASS');
+           $host = $_ENV['DB_HOST'];
+            $port = $_ENV['DB_PORT'];
+            $dbname = $_ENV['DB_NAME'];
+            $user = $_ENV['DB_USER'];
+            $pass = $_ENV['DB_PASS'];
 
             self::$instance = new PDO(
                 "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4",

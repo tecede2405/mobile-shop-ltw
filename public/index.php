@@ -1,6 +1,12 @@
 <?php
 
 require_once '../vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(
+    dirname(__DIR__)
+);
+
+$dotenv->load();
+
 header('Content-Type: application/json; charset=utf-8');
 // Autoload
 spl_autoload_register(function ($class) {
