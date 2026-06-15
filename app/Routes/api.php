@@ -120,3 +120,19 @@ $router->post(
     '/api/admin/products/delete/{id}',
     [AdminProductController::class, 'delete']
 );
+
+$router->post(
+    '/api/admin/products/update/{id}',
+    [AdminProductController::class, 'update']
+);
+
+$router->post(
+    '/api/admin/products/delete/{id}',
+    [AdminProductController::class, 'delete']
+);
+
+// ==== THÊM MỚI: API CHAT ====
+$router->get(
+    '/api/chat/history/{receiverId}',
+    [ChatController::class, 'history']
+);
