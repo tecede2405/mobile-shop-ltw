@@ -86,4 +86,20 @@ class ChatService
         // 2. Nếu đã có, lấy toàn bộ tin nhắn
         return $this->chatRepo->getMessages($convId);
     }
+
+    public function getAdmin()
+    {
+        $adminId = $this->chatRepo->getDefaultAdminId();
+        
+        if (!$adminId) {
+            throw new Exception("Không tìm thấy Admin nào đang hoạt động");
+        }
+        
+        return $adminId;
+    }
+
+    public function getRecentChats($userId)
+    {
+        return $this->chatRepo->getRecentConversations($userId);
+    }
 }

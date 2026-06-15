@@ -36,7 +36,6 @@ use React\EventLoop\Loop;
 // Khởi tạo Event Loop của ReactPHP
 $loop = Loop::get();
 
-// SỬA LỖI: Sử dụng từ khóa new thay vì ::create
 $socket = new \React\Socket\SocketServer('0.0.0.0:8080', [], $loop);
 
 // Khởi tạo Server Socket

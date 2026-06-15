@@ -131,8 +131,17 @@ $router->post(
     [AdminProductController::class, 'delete']
 );
 
-// ==== THÊM MỚI: API CHAT ====
 $router->get(
     '/api/chat/history/{receiverId}',
     [ChatController::class, 'history']
+);
+
+$router->get(
+    '/api/chat/recent',
+    [ChatController::class, 'recent']
+);
+
+$router->get(
+    '/api/chat/admin',
+    [ChatController::class, 'getAdminInfo']
 );

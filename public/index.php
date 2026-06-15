@@ -7,6 +7,16 @@ $dotenv = Dotenv\Dotenv::createImmutable(
 
 $dotenv->load();
 
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+
+// Xử lý request kiểm tra trước (Preflight Request) của trình duyệt
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 header('Content-Type: application/json; charset=utf-8');
 // Autoload
 spl_autoload_register(function ($class) {

@@ -72,4 +72,54 @@ class ChatRepository
         
         return $stmt->fetchAll();
     }
+
+    public function getRecentConversations($userId)
+    {
+        // Truy vấn này lấy danh sách chat, tự động tìm người đối diện (partner) và kèm tin nhắn mới nhất
+        $stmt = $this->db->prepare("
+            SELECT 
+                c.id as conversation_id,
+                u.id as partner_id,
+                u.username as partner_name,
+                m.content as last_message,
+                m.created_at as last_message_time,
+                m.is_read
+            FROM conversations c
+            JOIN users u ON u.id = CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END
+            LEFT JOIN messages m ON m.id = (
+                SELECT id FROM messages 
+                WHERE conversation_id = c.id 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            )
+            WHERE c.user1_id = ? OR c.user2_id = ?
+            ORDER BY last_message_time DESC
+        ");
+        
+        // Cần truyền $userId vào 3 vị trí dấu ? trong câu SQL
+        $stmt->execute([$userId, $userId, $userId]);
+        
+        return $stmt->fetchAll();
+    }
+
+    public function getDefaultAdminId()
+    {
+        // Truy vấn thông minh: Tìm Admin có tin nhắn gửi đi gần đây nhất (chứng tỏ đang trực page).
+        // Nếu các admin đều chưa từng nhắn (last_active = NULL), sẽ chọn ngẫu nhiên (RAND) để chia đều tải.
+        $stmt = $this->db->query("
+            SELECT u.id 
+            FROM users u
+            LEFT JOIN (
+                SELECT sender_id, MAX(created_at) as last_active 
+                FROM messages 
+                GROUP BY sender_id
+            ) m ON u.id = m.sender_id
+            WHERE u.role = 'admin'
+            ORDER BY m.last_active DESC, RAND()
+            LIMIT 1
+        ");
+        
+        return $stmt->fetchColumn(); // Trả về ID của Admin
+    }
+
 }
