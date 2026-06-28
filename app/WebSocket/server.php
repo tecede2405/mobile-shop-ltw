@@ -56,6 +56,8 @@ $server = new IoServer(
 $redisFactory = new RedisFactory($loop);
 $redisUrl = $_ENV['REDIS_URL'] ?? '127.0.0.1:6379';
 
+// --- 1. KẾT NỐI REDIS ĐỂ LẮNG NGHE ĐƠN HÀNG (SUBSCRIBE) ---
+
 $redisFactory->createClient($redisUrl)->then(function ($redis) use ($socketHandler) {
     echo "Đã kết nối Redis Async thành công!\n";
     
@@ -70,6 +72,14 @@ $redisFactory->createClient($redisUrl)->then(function ($redis) use ($socketHandl
     $redis->subscribe('ecommerce_notifications');
 }, function (Exception $e) {
     echo "Lỗi kết nối Redis Subscriber: " . $e->getMessage() . "\n";
+});
+// --- 2. KẾT NỐI REDIS ĐỂ QUẢN LÝ TRẠNG THÁI (STATE) ---
+$redisFactory->createClient($redisUrl)->then(function ($redisState) use ($socketHandler) {
+    echo "Đã kết nối Redis Async (State Manager)!\n";
+    // Truyền vào SocketHandler để nó cập nhật trạng thái Online
+    $socketHandler->setRedisState($redisState);
+}, function (Exception $e) {
+    echo "Lỗi Redis State: " . $e->getMessage() . "\n";
 });
 
 echo "WebSocket Server đang chạy tại cổng 8080...\n";

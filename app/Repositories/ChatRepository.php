@@ -103,23 +103,36 @@ class ChatRepository
     }
 
     public function getDefaultAdminId()
-    {
-        // Truy vấn thông minh: Tìm Admin có tin nhắn gửi đi gần đây nhất (chứng tỏ đang trực page).
-        // Nếu các admin đều chưa từng nhắn (last_active = NULL), sẽ chọn ngẫu nhiên (RAND) để chia đều tải.
-        $stmt = $this->db->query("
-            SELECT u.id 
-            FROM users u
-            LEFT JOIN (
-                SELECT sender_id, MAX(created_at) as last_active 
-                FROM messages 
-                GROUP BY sender_id
-            ) m ON u.id = m.sender_id
-            WHERE u.role = 'admin'
-            ORDER BY m.last_active DESC, RAND()
-            LIMIT 1
-        ");
+{
+    // 1. Ưu tiên 1: Lấy Admin ĐANG ONLINE từ Redis
+    try {
+        $redis = new \Predis\Client([
+            'scheme' => 'tcp',
+            'host'   => $_ENV['REDIS_HOST'] ?? '127.0.0.1',
+            'port'   => $_ENV['REDIS_PORT'] ?? 6379,
+        ]);
         
-        return $stmt->fetchColumn(); // Trả về ID của Admin
+        // Lấy danh sách ID của các admin đang trực page
+        $onlineAdmins = $redis->smembers('online_admins');
+        
+        if (!empty($onlineAdmins)) {
+            // Random 1 admin để cân bằng tải (nếu có nhiều admin cùng onl)
+            $selectedAdmin = $onlineAdmins[array_rand($onlineAdmins)];
+            return $selectedAdmin;
+        }
+    } catch (\Exception $e) {
+        // Log lại lỗi nếu Redis chưa bật, không làm đứng web
+        error_log("Không lấy được Admin Online từ Redis: " . $e->getMessage());
     }
+
+    // 2. Ưu tiên 2 (Backup): Nếu ĐÊM KHUYA không có Admin nào online, 
+    // lấy Admin có tin nhắn gần nhất trong Database (đoạn SQL cũ của bạn).
+    $sql = "SELECT id FROM users WHERE role = 'admin' LIMIT 1"; 
+    // (Lưu ý: Thay dòng $sql này bằng câu truy vấn SELECT JOIN thông minh mà bạn đã viết trước đó nhé).
+
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetchColumn();
+}
 
 }

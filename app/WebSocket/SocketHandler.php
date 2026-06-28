@@ -8,6 +8,7 @@ class SocketHandler implements MessageComponentInterface
     protected $clients;
     protected $userConnections = [];
     protected $adminConnections = [];
+    protected $redisState;
     
     // Khai báo biến chứa Service xử lý Chat
     protected $chatService;
@@ -32,21 +33,28 @@ class SocketHandler implements MessageComponentInterface
         }
 
         try {
-            $decoded = (array) JwtHelper::verify($query['token']);
+        $decoded = (array) JwtHelper::verify($query['token']);
 
-            $conn->user_id = $decoded['id'];
-            $conn->role = $decoded['role'];
+        $conn->user_id = $decoded['id'];
+        $conn->role = $decoded['role'];
 
-            $this->clients->attach($conn);
-            $this->userConnections[$conn->user_id][$conn->resourceId] = $conn;
+        $this->clients->attach($conn);
+        $this->userConnections[$conn->user_id][$conn->resourceId] = $conn;
 
-            if ($conn->role === 'admin') {
-                $this->adminConnections[$conn->resourceId] = $conn;
+        if ($conn->role === 'admin') {
+            $this->adminConnections[$conn->resourceId] = $conn;
+            
+            // --- GHI NHẬN ADMIN ONLINE VÀO REDIS ---
+            if ($this->redisState) {
+                // Lệnh sadd thêm id vào tập hợp (Set), không sợ bị trùng lặp
+                $this->redisState->sadd('online_admins', $conn->user_id);
+                echo "=> Đã thêm Admin ID {$conn->user_id} vào danh sách ONLINE.\n";
             }
+        }
 
-            echo "Kết nối thành công! User ID: {$conn->user_id} | Role: {$conn->role} | Conn ID: {$conn->resourceId}\n";
+        echo "Kết nối thành công! User ID: {$conn->user_id} | Role: {$conn->role} | Conn ID: {$conn->resourceId}\n";
 
-        } catch (Exception $e) {
+    } catch (Exception $e) {
             echo "Từ chối kết nối: Token không hợp lệ ({$e->getMessage()}).\n";
             $conn->close();
         }
@@ -73,25 +81,30 @@ class SocketHandler implements MessageComponentInterface
     }
 
     public function onClose(ConnectionInterface $conn)
-    {
-        $this->clients->detach($conn);
+{
+    $this->clients->detach($conn);
 
-        if (isset($conn->user_id)) {
-            // Xóa kết nối của Tab hiện tại
-            unset($this->userConnections[$conn->user_id][$conn->resourceId]);
+    if (isset($conn->user_id)) {
+        unset($this->userConnections[$conn->user_id][$conn->resourceId]);
 
-            // Nếu User đóng toàn bộ Tab -> Xóa hẳn User đó khỏi bộ nhớ
-            if (empty($this->userConnections[$conn->user_id])) {
-                unset($this->userConnections[$conn->user_id]);
+        // Nếu User/Admin đóng TOÀN BỘ Tab
+        if (empty($this->userConnections[$conn->user_id])) {
+            unset($this->userConnections[$conn->user_id]);
+            
+            // --- XÓA ADMIN KHỎI DANH SÁCH ONLINE TRÊN REDIS ---
+            if (isset($conn->role) && $conn->role === 'admin' && $this->redisState) {
+                $this->redisState->srem('online_admins', $conn->user_id);
+                echo "=> Admin ID {$conn->user_id} đã OFFLINE.\n";
             }
-
-            if (isset($this->adminConnections[$conn->resourceId])) {
-                unset($this->adminConnections[$conn->resourceId]);
-            }
-
-            echo "Ngắt kết nối: User ID {$conn->user_id} (Conn ID: {$conn->resourceId})\n";
         }
+
+        if (isset($this->adminConnections[$conn->resourceId])) {
+            unset($this->adminConnections[$conn->resourceId]);
+        }
+
+        echo "Ngắt kết nối: User ID {$conn->user_id} (Conn ID: {$conn->resourceId})\n";
     }
+}
 
     public function onError(ConnectionInterface $conn, \Exception $e)
     {
@@ -111,4 +124,10 @@ class SocketHandler implements MessageComponentInterface
         
         echo "Đã gửi thông báo '$event' tới " . count($this->adminConnections) . " admin(s) đang online.\n";
     }
+
+    public function setRedisState($redis) {
+    $this->redisState = $redis;
+    // Xóa rác danh sách cũ (nếu có) khi server vừa khởi động lại
+    $this->redisState->del('online_admins');
+}
 }
