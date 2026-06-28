@@ -32,22 +32,45 @@ use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 use React\EventLoop\Loop;
+use Clue\React\Redis\Factory as RedisFactory;
 
 // Khởi tạo Event Loop của ReactPHP
 $loop = Loop::get();
 
 $socket = new \React\Socket\SocketServer('0.0.0.0:8080', [], $loop);
 
+// Tách SocketHandler ra một biến để tái sử dụng
+$socketHandler = new SocketHandler();
+
 // Khởi tạo Server Socket
 $server = new IoServer(
     new HttpServer(
         new WsServer(
-            new SocketHandler()
+            $socketHandler
         )
     ),
     $socket,
     $loop
 );
+
+$redisFactory = new RedisFactory($loop);
+$redisUrl = $_ENV['REDIS_URL'] ?? '127.0.0.1:6379';
+
+$redisFactory->createClient($redisUrl)->then(function ($redis) use ($socketHandler) {
+    echo "Đã kết nối Redis Async thành công!\n";
+    
+    $redis->on('message', function ($channel, $payload) use ($socketHandler) {
+        $data = json_decode($payload, true);
+        if ($data && isset($data['event']) && $data['event'] === 'new_order') {
+            // Đẩy sang SocketHandler để gửi cho Admin
+            $socketHandler->sendToAdmins('new_order', $data['data']);
+        }
+    });
+
+    $redis->subscribe('ecommerce_notifications');
+}, function (Exception $e) {
+    echo "Lỗi kết nối Redis Subscriber: " . $e->getMessage() . "\n";
+});
 
 echo "WebSocket Server đang chạy tại cổng 8080...\n";
 

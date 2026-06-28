@@ -82,6 +82,7 @@ class OrderService
         $this->cartRepo
             ->clearCart($cart['id']);
 
+        // --- GỬI THÔNG BÁO TỚI REDIS ---
         if ($this->redis) {
             try {
                 $payload = json_encode([
@@ -92,11 +93,8 @@ class OrderService
                         'customer' => $data['name']
                     ]
                 ]);
-                
-                // Publish vào channel 'ecommerce_notifications'
                 $this->redis->publish('ecommerce_notifications', $payload);
             } catch (\Exception $e) {
-                // Bỏ qua lỗi Redis để không làm gián đoạn việc tạo đơn hàng của User
                 error_log("Redis Publish Error: " . $e->getMessage());
             }
         }

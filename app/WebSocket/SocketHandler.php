@@ -98,4 +98,17 @@ class SocketHandler implements MessageComponentInterface
         echo "Lỗi trên Conn ID {$conn->resourceId}: {$e->getMessage()}\n";
         $conn->close();
     }
+    public function sendToAdmins($event, $data)
+    {
+        $payload = json_encode([
+            'event' => $event,
+            'data'  => $data
+        ]);
+
+        foreach ($this->adminConnections as $conn) {
+            $conn->send($payload);
+        }
+        
+        echo "Đã gửi thông báo '$event' tới " . count($this->adminConnections) . " admin(s) đang online.\n";
+    }
 }
