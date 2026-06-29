@@ -120,3 +120,28 @@ $router->post(
     '/api/admin/products/delete/{id}',
     [AdminProductController::class, 'delete']
 );
+
+$router->post(
+    '/api/admin/products/update/{id}',
+    [AdminProductController::class, 'update']
+);
+
+$router->post(
+    '/api/admin/products/delete/{id}',
+    [AdminProductController::class, 'delete']
+);
+
+$router->get(
+    '/api/chat/history/{receiverId}',
+    [ChatController::class, 'history']
+);
+
+$router->get(
+    '/api/chat/recent',
+    [ChatController::class, 'recent']
+);
+
+$router->get(
+    '/api/chat/admin',
+    [ChatController::class, 'getAdminInfo']
+);

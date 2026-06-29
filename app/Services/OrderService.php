@@ -4,11 +4,23 @@ class OrderService
 {
     private $orderRepo;
     private $cartRepo;
+    private $redis;
 
     public function __construct()
     {
         $this->orderRepo = new OrderRepository();
         $this->cartRepo = new CartRepository();
+
+        // Khởi tạo kết nối Redis
+        try {
+            $this->redis = new \Predis\Client([
+                'scheme' => 'tcp',
+                'host'   => $_ENV['REDIS_HOST'] ?? '127.0.0.1',
+                'port'   => $_ENV['REDIS_PORT'] ?? 6379,
+            ]);
+        } catch (\Exception $e) {
+            $this->redis = null;
+        }
     }
 
     public function createOrder(
@@ -69,6 +81,23 @@ class OrderService
 
         $this->cartRepo
             ->clearCart($cart['id']);
+
+        // --- GỬI THÔNG BÁO TỚI REDIS ---
+        if ($this->redis) {
+            try {
+                $payload = json_encode([
+                    'event' => 'new_order',
+                    'data'  => [
+                        'order_id' => $orderId,
+                        'total'    => $total,
+                        'customer' => $data['name']
+                    ]
+                ]);
+                $this->redis->publish('ecommerce_notifications', $payload);
+            } catch (\Exception $e) {
+                error_log("Redis Publish Error: " . $e->getMessage());
+            }
+        }
 
         return $orderId;
     }
