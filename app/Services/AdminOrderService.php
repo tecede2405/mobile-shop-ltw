@@ -27,6 +27,8 @@ class AdminOrderService
             );
         }
 
+        $order['items'] = $this->repo->getItemsByOrderId($id);
+
         return $order;
     }
 

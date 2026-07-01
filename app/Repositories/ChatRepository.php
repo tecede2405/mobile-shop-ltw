@@ -46,17 +46,18 @@ class ChatRepository
 
     public function getConversationId($userId1, $userId2)
     {
+        // ORDER BY id DESC: lấy conversation MỚI NHẤT (không phải cũ nhất)
         $stmt = $this->db->prepare("
             SELECT id FROM conversations 
             WHERE (user1_id = ? AND user2_id = ?) 
                OR (user1_id = ? AND user2_id = ?)
+            ORDER BY id DESC
             LIMIT 1
         ");
         
-        // Kiểm tra cả 2 chiều (A nhắn cho B, hoặc B nhắn cho A)
         $stmt->execute([$userId1, $userId2, $userId2, $userId1]);
         
-        return $stmt->fetchColumn(); // Trả về ID hoặc false
+        return $stmt->fetchColumn();
     }
 
     public function getMessages($conversationId)
@@ -69,6 +70,33 @@ class ChatRepository
         ");
         
         $stmt->execute([$conversationId]);
+        
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Lấy TẤT CẢ tin nhắn giữa 2 user từ MỌI conversation (gộp lại, sort theo thời gian)
+     * Giải quyết vấn đề nhiều conversation trùng user dẫn đến mất lịch sử
+     */
+    public function getAllMessagesBetweenUsers($userId1, $userId2)
+    {
+        $stmt = $this->db->prepare("
+            SELECT 
+                m.id,
+                m.sender_id,
+                m.receiver_id,
+                m.content,
+                m.is_read,
+                m.created_at
+            FROM messages m
+            JOIN conversations c ON m.conversation_id = c.id
+            WHERE 
+                (c.user1_id = ? AND c.user2_id = ?)
+             OR (c.user1_id = ? AND c.user2_id = ?)
+            ORDER BY m.created_at ASC
+        ");
+        
+        $stmt->execute([$userId1, $userId2, $userId2, $userId1]);
         
         return $stmt->fetchAll();
     }

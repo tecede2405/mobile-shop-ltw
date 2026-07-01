@@ -34,6 +34,18 @@ class AdminOrderRepository
         return $stmt->fetch();
     }
 
+    public function getItemsByOrderId($orderId)
+    {
+        $stmt = $this->db->prepare("
+            SELECT oi.*, p.name as product_name
+            FROM order_items oi
+            LEFT JOIN products p ON p.id = oi.product_id
+            WHERE oi.order_id = ?
+        ");
+        $stmt->execute([$orderId]);
+        return $stmt->fetchAll();
+    }
+
     public function updateStatus(
         $id,
         $status

@@ -14,10 +14,21 @@ class ChatService
     // Tiếp nhận và quản lý luồng tin nhắn
     public function handleMessage(ConnectionInterface $from, array $data, array $userConnections)
     {
-        // 1. Kiểm tra conversation_id, nếu là tin đầu tiên thì tạo mới
+        // 1. Kiểm tra conversation_id
         $convId = $data['conversation_id'] ?? null;
         if (!$convId) {
-            $convId = $this->chatRepo->createConversation($from->user_id, $data['receiver_id']);
+            // Tìm xem 2 user này đã có conversation chưa (tránh tạo trùng)
+            $convId = $this->chatRepo->getConversationId(
+                $from->user_id,
+                $data['receiver_id']
+            );
+            // Chỉ tạo mới nếu thực sự chưa có
+            if (!$convId) {
+                $convId = $this->chatRepo->createConversation(
+                    $from->user_id,
+                    $data['receiver_id']
+                );
+            }
         }
 
         // 2. Lưu vào DB (Bước 2.1)
@@ -75,16 +86,9 @@ class ChatService
 
     public function getHistory($userId1, $userId2)
     {
-        // 1. Tìm xem 2 user này đã từng chat chưa
-        $convId = $this->chatRepo->getConversationId($userId1, $userId2);
-        
-        // Nếu chưa từng chat, trả về mảng rỗng
-        if (!$convId) {
-            return [];
-        }
-
-        // 2. Nếu đã có, lấy toàn bộ tin nhắn
-        return $this->chatRepo->getMessages($convId);
+        // Lấy TẤT CẢ tin nhắn từ mọi conversation giữa 2 user
+        // (tránh mất lịch sử khi có nhiều conversation trùng user)
+        return $this->chatRepo->getAllMessagesBetweenUsers($userId1, $userId2);
     }
 
     public function getAdmin()
